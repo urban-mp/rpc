@@ -4,10 +4,6 @@ import type {
 	RPCNativeServerEvents,
 } from './types'
 
-/**
- * https://docs.fivem.net/docs/scripting-reference/events/server-events/
- * @readonly
- */
 export const NATIVE_SERVER_EVENTS: readonly (keyof RPCNativeServerEvents)[] = [
 	'entityCreated',
 	'entityCreating',
@@ -28,10 +24,6 @@ export const NATIVE_SERVER_EVENTS: readonly (keyof RPCNativeServerEvents)[] = [
 	'weaponDamageEvent',
 ] as const
 
-/**
- * https://docs.fivem.net/docs/scripting-reference/events/client-events/
- * @readonly
- */
 export const NATIVE_CLIENT_EVENTS: readonly (keyof RPCNativeClientEvents)[] = [
 	'entityDamaged',
 	'gameEventTriggered',
@@ -45,10 +37,6 @@ export const NATIVE_CLIENT_EVENTS: readonly (keyof RPCNativeClientEvents)[] = [
 	'populationPedCreating',
 ] as const
 
-/**
- * https://docs.fivem.net/docs/game-references/game-events/
- * @readonly
- */
 export const NATIVE_CLIENT_NETWORK_EVENTS: readonly RPCNativeClientNetworkEventsNames[] =
 	[
 		'CEventAcquaintancePed',

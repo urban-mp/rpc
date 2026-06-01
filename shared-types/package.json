@@ -1,6 +1,6 @@
 {
-	"name": "@entityseven/fivem-rpc-shared-types",
-	"description": "Shared (enhanced) types for @entityseven/fivem-rpc. Highly recommended to install together",
+	"name": "@urban-mp/rpc-types",
+	"description": "Shared (enhanced) types for @urban-mp/rpc. Highly recommended to install together",
 	"version": "0.1.0",
 	"types": "types/types/index.d.ts",
 	"files": [
@@ -9,24 +9,23 @@
 		"license.md"
 	],
 	"keywords": [
-		"fivem-rpc-shared-types",
-		"fivem-rpc",
+		"rpc-types",
+		"rpc",
 		"fivem",
 		"gta"
 	],
 	"type": "module",
-	"author": "Entity Seven Group",
+	"author": "Urban MP",
 	"contributors": [
 		{
-			"name": "Danya H",
-			"email": "dev.rilaxik@gmail.com",
-			"url": "https://github.com/rilaxik/"
+			"name": "CataAdv",
+			"url": "https://github.com/CataAdv"
 		}
 	],
 	"license": "Custom-Attribution-NoDerivs",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/rilaxik/fivem-rpc.git"
+		"url": "https://github.com/urban-mp/rpc.git"
 	},
 	"peerDependencies": {
 		"typescript": "^5"

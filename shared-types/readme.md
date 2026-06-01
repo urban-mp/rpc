@@ -1,168 +1,113 @@
 # FiveM RPC Shared Types
-### [Docs & Info](https://github.com/rilaxik/fivem-rpc/blob/master/readme.md)
+
+Shared TypeScript declarations for `@urban-mp/rpc`. This package lets every runtime project use the same event names, argument types, return types, and command names.
+
+[![npm package](https://img.shields.io/npm/v/@urban-mp/rpc-types?label=npm)](https://www.npmjs.com/package/@urban-mp/rpc-types)
+[![TypeScript](https://img.shields.io/badge/TypeScript-declarations-3178c6)](https://www.typescriptlang.org/)
 
 ## Installation
+
 ```bash
-  pnpm i @entityseven/fivem-rpc-shared-types -D
-```
-```bash
-  yarn add @entityseven/fivem-rpc-shared-types --dev
-```
-```bash
-  bun add @entityseven/fivem-rpc-shared-types -d
+pnpm add -D @urban-mp/rpc-types
 ```
 
-## Usage
-This package is an enhanced type support for `@entityseven/fivem-rpc`. It provides ability to strictly type your events for better dx.
+```bash
+yarn add -D @urban-mp/rpc-types
+```
 
-## Example
-This example is neat way to follow up but you can change it as you wish. It will use bun workspaces, pnpm workspaces work in a similar manner. Referring the following folder structure:
-```markdown
+```bash
+bun add -d @urban-mp/rpc-types
+```
+
+## Recommended Structure
+
+```text
 apps/
-    - server/
-        - package.json
-        - tsconfig.json
-    - client/
-        - package.json
-        - tsconfig.json
-    - webview/
-        - package.json
-        - tsconfig.json
-    - shared/ (this must be available in server, client and webview)
-        - package.json
-
-    - package.json (root package)
-    - pnpm-workspace.yaml (only if using pnpm)
+  server/
+  client/
+  webview/
+  shared/
+    rpc/
+      index.d.ts
 ```
 
-- Environment folder: folder with server, client or webview code in it
+## Declaration File
 
-1. Install this package as dev dependency in your root package or in each environment folder separately
-    ```markdown
-    apps/
-        - server/ <- (if not installed root)
-        - client/ <- (if not installed root)
-        - webview/ <- (if not installed root)
-        - shared/
-    
-        - package.json <- here
-    ```
+Create `shared/rpc/index.d.ts`.
 
-2. In `shared/` create folder `fivem-rpc` (or similar), inside it create `index.d.ts`
-    ```markdown
-    apps/
-        - server/ 
-        - client/ 
-        - webview/ 
-        - shared/
-            - fivem-rpc/
-                - index.d.ts <- here
-    
-        - package.json
-    ```
+```ts
+declare module '@urban-mp/rpc-types' {
+	export type RPCCommands_Client = 'toggleui'
+	export type RPCCommands_Server = 'report'
 
-3. In `index.d.ts` add following:
-    ```ts
-    declare module '@entityseven/fivem-rpc-shared-types' {
-        // Client commands names 
-        export type RPCCommands_Client = ''
- 
-        // Server commands names
-        export type RPCCommands_Server = ''
- 
-        // Client -> Client events
-        export interface RPCEvents_Client {}
- 
-        // Client -> Server events
-        export interface RPCEvents_ClientServer {}
- 
-        // Client -> Webview events
-        export interface RPCEvents_ClientWebview {}
- 
-        // Server -> Server events
-        export interface RPCEvents_Server {}
- 
-        // Server -> Client events
-        export interface RPCEvents_ServerClient {}
- 
-        // Server -> Server events
-        export interface RPCEvents_ServerWebview {}
- 
-        // Webview -> Webview events
-        export interface RPCEvents_Webview {}
- 
-        // Webview -> Client events
-        export interface RPCEvents_WebviewClient {}
- 
-        // Webview -> Server events
-        export interface RPCEvents_WebviewServer {}
-    }
-    ```
+	export interface RPCEvents_Client {
+		'player:getPosition'(): [number, number, number]
+	}
 
-4. We just created a declaration which will overwrite types from the package. Now we need our packages to refer to these types when linting `rpc` functions. To do this in each environment folder of your project in `tsconfig.json` do these:
-    ```json5
-    {
-        "compilerOptions": {
-            "types": [
-                "../shared/fivem-rpc/" // or your specific folder
-            ]
-        } 
-    }
-    ```
-5. We also need to populate interfaces we created in step 3.
-- `RPCCommands_Client` and `RPCCommands_Server` will include your commands names an union strings:
-    ```ts
-    export type RPCCommands_Client = 'afk' | 'vanish' | '...' // example names
-    export type RPCCommands_Server = 'report' | 'ban' | '...' // example names
-    ```
-- Other interfaces will include your events types. The example will show one but all of the work same way
-    ```ts
-    export interface RPCEvents_ClientServer {
-        clientToServerEventName(data: string, moreData: boolean): number
-        "client-to-server-event-name"(data: string, moreData: boolean): number // can also include characters you cannot use as variable or function names
-    }
-    ```
-    - `clientToServerEventName` or `client-to-server-event-name` is an event name
-    - `data` and `moreData` are the arguments you need to pass when calling an event and argument you will receive when listening (may also include extra, as player, check type hints)
-    - `number` is a return type that will be forwarded back to caller 
-  
-    Doing this will create type hints for you:
-    ```ts
-    // assuming this is in client
-    const response /* number */ = await rpc.emitServer(
-    'clientToServerEventName', /* suggested name */
-    'data', /* will pass typecheck */
-    'moreData', /* will NOT pass typecheck, since required type is `boolean` */
-    )
-    ```
+	export interface RPCEvents_ClientServer {
+		'profile:get'(): { name: string; level: number }
+	}
 
-## Example (alternative)
-If previous example does not work or you do not like you can also try it this way. Steps that are not mentioned are the same as previous
+	export interface RPCEvents_ClientWebview {
+		'settings:get'(key: string): unknown
+	}
 
-2. In `shared/` create folders `declarations/fivem-rpc`, inside it create `index.d.ts`
-    ```markdown
-    apps/
-        - server/ 
-        - client/ 
-        - webview/ 
-        - shared/
-            - declarations/
-               - fivem-rpc/
-                   - index.d.ts <- here
-    
-        - package.json
-    ```
+	export interface RPCEvents_Server {
+		'cache:flush'(): boolean
+	}
 
-4. We just created a declaration which will overwrite types from the package. Now we need our packages to refer to these types when linting `rpc` functions. To do this in each environment folder of your project in `tsconfig.json` do these:
-    ```json5
-    {
-        "compilerOptions": {
-            "typeRoots": [
-                "../shared/declarations/", // or your specific folder
-                "../../node_modules/@types", // you may also want to add this if some of your other libraries are not showing types now
-            ]
-        } 
-    }
-    ```
+	export interface RPCEvents_ServerClient {
+		'hud:getState'(): { visible: boolean }
+	}
 
-If a any point this stops working for you, do your research on how to redeclare library types and refer to it
+	export interface RPCEvents_ServerWebview {
+		'modal:confirm'(payload: { title: string }): boolean
+	}
+
+	export interface RPCEvents_Webview {
+		'theme:get'(): string
+	}
+
+	export interface RPCEvents_WebviewClient {
+		'camera:getMode'(): string
+	}
+
+	export interface RPCEvents_WebviewServer {
+		'profile:save'(payload: Record<string, unknown>): boolean
+	}
+}
+```
+
+## TypeScript Setup
+
+Reference the declaration from each runtime `tsconfig.json`.
+
+```json
+{
+	"compilerOptions": {
+		"types": ["../shared/rpc"]
+	}
+}
+```
+
+If your project uses custom type roots, configure them instead.
+
+```json
+{
+	"compilerOptions": {
+		"typeRoots": ["../shared", "../../node_modules/@types"]
+	}
+}
+```
+
+## Result
+
+Typed event maps provide autocomplete and compile-time checks for every RPC method.
+
+```ts
+const profile = await rpc.emitServer('profile:get')
+```
+
+## License
+
+Licensed under the Custom Attribution-NoDerivs Software License.

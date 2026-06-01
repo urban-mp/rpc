@@ -1,6 +1,6 @@
 Custom Attribution-NoDerivs Software License
 
-Copyright (c) 2025 Entity Seven Group
+Copyright (c) 2025 Urban MP
 
 This license allows you to use, copy, and distribute these packages (the "Software"), including for commercial purposes, provided that the following conditions are met:
 

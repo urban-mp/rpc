@@ -17,21 +17,15 @@
 	"private": true,
 	"type": "module",
 	"license": "CC0-1.0",
-	"author": "Entity Seven Group",
+	"author": "Urban MP",
 	"contributors": [
 		{
-			"name": "Danya H",
-			"email": "dev.rilaxik@gmail.com",
-			"url": "https://github.com/rilaxik/"
-		},
-		{
-			"name": "Oleksandr Honcharov",
-			"email": "0976053529@ukr.net",
-			"url": "https://github.com/SashaGoncharov19/"
+			"name": "CataAdv",
+			"url": "https://github.com/CataAdv"
 		}
 	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/rilaxik/fivem-rpc.git"
+		"url": "https://github.com/urban-mp/rpc.git"
 	}
 }

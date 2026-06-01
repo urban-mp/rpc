@@ -9,35 +9,12 @@ import {
 	RPCErrors,
 } from './utils/types'
 
-/**
- * RPC Factory
- *
- * @example
- * // returns RPCInstanceServer
- * const rpc = new RPCFactory({ env: "server" }).get()
- *
- * @example
- * // returns RPCInstanceClient
- * const rpc = new RPCFactory({ env: "client" }).get()
- *
- * @example
- * // returns RPCInstanceWebview
- * const rpc = new RPCFactory({ env: "webview" }).get()
- *
- * @class
- */
-class RPCFactory<T extends RPCEnvironment> extends Wrapper {
+class RPC<T extends RPCEnvironment> extends Wrapper {
 	private readonly operator:
 		| RPCInstanceServer
 		| RPCInstanceClient
 		| RPCInstanceWebview
 
-	/**
-	 * Instance options
-	 * @param {object} opts - Options
-	 * @param {string} opts.env - Instance environment
-	 * @param {boolean} opts.debug - Show additional logs
-	 */
 	constructor(opts: RPCConfig<T>) {
 		super(opts)
 
@@ -63,7 +40,9 @@ class RPCFactory<T extends RPCEnvironment> extends Wrapper {
 	}
 }
 
-export { RPCFactory }
+const RPCFactory = RPC
+
+export { RPC, RPCFactory }
 export * from './utils/types'
 export * from './utils/native'
 export type * from './core/server'

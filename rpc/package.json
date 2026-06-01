@@ -1,5 +1,5 @@
 {
-	"name": "@entityseven/fivem-rpc",
+	"name": "@urban-mp/rpc",
 	"description": "FiveM RPC is an all-in-one package with asynchronous RPC implementation for FiveM servers in JS/TS",
 	"version": "0.1.0",
 	"main": "dist/index.js",
@@ -10,23 +10,22 @@
 		"license.md"
 	],
 	"keywords": [
-		"fivem-rpc",
-		"fivem-rpc-shared-types",
+		"rpc",
+		"rpc-types",
 		"fivem",
 		"gta"
 	],
-	"author": "Entity Seven Group",
+	"author": "Urban MP",
 	"contributors": [
 		{
-			"name": "Danya H",
-			"email": "dev.rilaxik@gmail.com",
-			"url": "https://github.com/rilaxik/"
+			"name": "CataAdv",
+			"url": "https://github.com/CataAdv"
 		}
 	],
 	"license": "Custom-Attribution-NoDerivs",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/rilaxik/fivem-rpc.git"
+		"url": "https://github.com/urban-mp/rpc.git"
 	},
 	"scripts": {
 		"build": "tsup"

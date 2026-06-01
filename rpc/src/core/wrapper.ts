@@ -13,12 +13,18 @@ export class Wrapper {
 	protected _emitterLocal: Emitter
 	protected debug: boolean
 	protected console: Console
+	protected resourceName: string | null
 
 	constructor(cfg: RPCConfig<RPCEnvironment>) {
 		this.env = cfg.env
 		this._emitterLocal = new Emitter()
 		this.debug = cfg.debug ?? false
 		this.console = console
+		this.resourceName = cfg.resourceName ?? null
+	}
+
+	protected isTargetResource(rpcData: RPCState): boolean {
+		return !rpcData.targetResource || rpcData.targetResource === this.resourceName
 	}
 
 	protected verifyEvent(state: Emitter, data: RPCStateRaw | RPCState) {
@@ -37,6 +43,8 @@ export class Wrapper {
 			`Uuid: ${rpcData.uuid}`,
 			`From: ${rpcData.calledFrom}`,
 			`To: ${rpcData.calledTo}`,
+			`Source resource: ${rpcData.sourceResource}`,
+			`Target resource: ${rpcData.targetResource}`,
 			`Player: ${rpcData.player}`,
 			`Type: ${rpcData.type}`,
 			`Data: ${rpcData.data}`,

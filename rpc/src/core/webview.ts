@@ -1,4 +1,4 @@
-import type * as s from '@entityseven/fivem-rpc-shared-types'
+import type * as s from '@urban-mp/rpc-types'
 import { Emitter } from '../utils/emitter'
 import { generateUUID, stringify } from '../utils/funcs'
 import {
@@ -22,6 +22,8 @@ export class RPCInstanceWebview extends Wrapper {
 
 	constructor(props: RPCConfig<'webview'>) {
 		super(props)
+		this.resourceName =
+			props.resourceName ?? window?.GetParentResourceName?.() ?? 'nui-frame-app'
 
 		this._emitterClient = new Emitter()
 		this._emitterServer = new Emitter()
@@ -38,9 +40,9 @@ export class RPCInstanceWebview extends Wrapper {
 		})
 	}
 
-	// ===== HANDLERS =====
-
 	private async _handleClient(payload: RPCState) {
+		if (!this.isTargetResource(payload)) return
+
 		if (this.debug) {
 			this.console.log(
 				`[RPC]:webview:accepted ${payload.type} ${payload.event} from ${payload.calledFrom}`,
@@ -60,6 +62,8 @@ export class RPCInstanceWebview extends Wrapper {
 				uuid: payload.uuid,
 				calledFrom: 'webview',
 				calledTo: 'client',
+				sourceResource: this.resourceName,
+				targetResource: payload.sourceResource,
 				error: null,
 				data: [responseData],
 				player: payload.player,
@@ -71,6 +75,8 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	private async _handleServer(payload: RPCState) {
+		if (!this.isTargetResource(payload)) return
+
 		if (this.debug) {
 			this.console.log(
 				`[RPC]:webview:accepted ${payload.type} ${payload.event} from ${payload.calledFrom}`,
@@ -90,6 +96,8 @@ export class RPCInstanceWebview extends Wrapper {
 				uuid: payload.uuid,
 				calledFrom: 'webview',
 				calledTo: 'server',
+				sourceResource: this.resourceName,
+				targetResource: payload.sourceResource,
 				error: null,
 				data: [responseData],
 				player: payload.player,
@@ -99,8 +107,6 @@ export class RPCInstanceWebview extends Wrapper {
 			await this._createHttpClientRequest(response)
 		}
 	}
-
-	// ===== CLIENT =====
 
 	public onClient<
 		EventName extends keyof s.RPCEvents_ClientWebview,
@@ -137,22 +143,45 @@ export class RPCInstanceWebview extends Wrapper {
 		EventName extends keyof s.RPCEvents_WebviewClient,
 		Arguments extends Parameters<s.RPCEvents_WebviewClient[EventName]>,
 		Response extends ReturnType<s.RPCEvents_WebviewClient[EventName]>,
-	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
+	>(
+		resourceName: string,
+		eventName: EventName,
+		...args: Arguments
+	): Promise<Awaited<Response>> {
+		return this._emitClient<EventName, Arguments, Response>(
+			eventName,
+			args,
+			resourceName,
+		)
+	}
+
+	private async _emitClient<
+		EventName extends keyof s.RPCEvents_WebviewClient,
+		Arguments extends Parameters<s.RPCEvents_WebviewClient[EventName]>,
+		Response extends ReturnType<s.RPCEvents_WebviewClient[EventName]>,
+	>(
+		eventName: EventName,
+		args: Arguments,
+		resourceName: string,
+	): Promise<Awaited<Response>> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
 			calledFrom: 'webview',
 			calledTo: 'client',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: null,
 			type: 'event',
 		}
 
-		return await this._createHttpClientRequest<Awaited<Response>>(payload)
+		return await this._createHttpClientRequest<Awaited<Response>>(
+			payload,
+			resourceName,
+		)
 	}
-
-	// ===== SERVER =====
 
 	public onServer<
 		EventName extends keyof s.RPCEvents_ServerWebview,
@@ -189,22 +218,45 @@ export class RPCInstanceWebview extends Wrapper {
 		EventName extends keyof s.RPCEvents_WebviewServer,
 		Arguments extends Parameters<s.RPCEvents_WebviewServer[EventName]>,
 		Response extends ReturnType<s.RPCEvents_WebviewServer[EventName]>,
-	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
+	>(
+		resourceName: string,
+		eventName: EventName,
+		...args: Arguments
+	): Promise<Awaited<Response>> {
+		return this._emitServer<EventName, Arguments, Response>(
+			eventName,
+			args,
+			resourceName,
+		)
+	}
+
+	private async _emitServer<
+		EventName extends keyof s.RPCEvents_WebviewServer,
+		Arguments extends Parameters<s.RPCEvents_WebviewServer[EventName]>,
+		Response extends ReturnType<s.RPCEvents_WebviewServer[EventName]>,
+	>(
+		eventName: EventName,
+		args: Arguments,
+		resourceName: string,
+	): Promise<Awaited<Response>> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
 			calledFrom: 'webview',
 			calledTo: 'server',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: null,
 			type: 'event',
 		}
 
-		return await this._createHttpClientRequest<Awaited<Response>>(payload)
+		return await this._createHttpClientRequest<Awaited<Response>>(
+			payload,
+			resourceName,
+		)
 	}
-
-	// ===== SELF =====
 
 	public onSelf<
 		EventName extends keyof s.RPCEvents_Webview,
@@ -247,6 +299,8 @@ export class RPCInstanceWebview extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'webview',
 			calledTo: 'webview',
+			sourceResource: this.resourceName,
+			targetResource: this.resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: null,
@@ -267,10 +321,9 @@ export class RPCInstanceWebview extends Wrapper {
 		)
 	}
 
-	// ===== UTILS =====
-
 	private async _createHttpClientRequest<R>(
 		data: RPCStateRaw | RPCState,
+		resourceName?: string,
 	): Promise<R> {
 		const dataRaw = typeof data === 'string' ? data : stringify(data)
 		const options = {
@@ -280,9 +333,10 @@ export class RPCInstanceWebview extends Wrapper {
 			},
 			body: dataRaw,
 		}
-		const resourceName = window?.GetParentResourceName?.() ?? 'nui-frame-app'
+		const targetResourceName =
+			resourceName ?? this.resourceName ?? window?.GetParentResourceName?.() ?? 'nui-frame-app'
 		return fetch(
-			`https://${resourceName}/${RPCEvents.LISTENER_WEB}`,
+			`https://${targetResourceName}/${RPCEvents.LISTENER_WEB}`,
 			options,
 		).then(res => res.json())
 	}

@@ -2,9 +2,6 @@ import type { RPCInstanceClient } from '../core/client'
 import type { RPCInstanceServer } from '../core/server'
 import type { RPCInstanceWebview } from '../core/webview'
 
-/**
- * Possible environment states for `RPCConfig`
- */
 export type RPCEnvironment = 'server' | 'client' | 'webview'
 
 export type RPCEnvironmentResolved<T extends RPCEnvironment> =
@@ -16,69 +13,42 @@ export type RPCEnvironmentResolved<T extends RPCEnvironment> =
 				? RPCInstanceWebview
 				: never
 
-/**
- * `RPCFactory` config.
- *
- * If environment does not match will throw `RPCErrors.UNKNOWN_ENVIRONMENT`
- */
 export type RPCConfig<T extends RPCEnvironment | unknown> = {
 	env: T
 	debug?: boolean
+	resourceName?: string
 }
 
-/** **Internal** */
 export type RPCEventType = 'event' | 'response'
 
-/**
- * **Internal**
- *
- * Similar to what Errors look like
- */
 export type RPCState = {
 	event: string
 	uuid: string
 	calledFrom: RPCEnvironment
 	calledTo: RPCEnvironment
+	sourceResource: string | null
+	targetResource: string | null
 	error: string | null
 	data: unknown[] | null
 	player: number | null
 	type: RPCEventType
 }
 
-/**
- * **Internal**
- *
- * `JSON.stringify` version of `RPCState`. Makes TS think this is not type `string` for better dx
- */
 export type RPCStateRaw = string & { __brand: 'RPCStateRaw' }
 
-/** Internal */
 export type RPCStateWeb = {
 	origin: RPCEvents
 	data: RPCState
 }
 
-/**
- * **Internal**
- *
- * `JSON.stringify` version of `RPCStateWeb`. Makes TS think this is not type `string` for better dx
- */
 export type RPCStateWebRaw = string & { __brand: 'RPCWebStateRaw' }
 
-/**
- * **Internal**
- *
- * Do not create same listeners to avoid unexpected behaviour
- */
 export enum RPCEvents {
 	LISTENER_SERVER = '__rpc:listenerServer',
 	LISTENER_CLIENT = '__rpc:listenerClient',
 	LISTENER_WEB = '__rpc:listenerWeb',
 }
 
-/**
- * Errors to check against
- */
 export enum RPCErrors {
 	EVENT_NOT_REGISTERED = 'Event not registered',
 	INVALID_DATA = 'Invalid data (possibly broken JSON)',
@@ -87,9 +57,6 @@ export enum RPCErrors {
 	UNKNOWN_ENVIRONMENT = 'Unknown environment (must be either "server", "client" or "webview")',
 }
 
-/**
- * https://docs.fivem.net/docs/scripting-reference/events/server-events/
- */
 export type RPCNativeServerEvents = {
 	entityCreated(handle: number): void
 	entityCreating(handle: number): void
@@ -221,9 +188,6 @@ export type RPCNativeServerEvents = {
 	): void
 }
 
-/**
- * https://docs.fivem.net/docs/scripting-reference/events/client-events/
- */
 export type RPCNativeClientEvents = {
 	entityDamaged(
 		victim: number,
@@ -262,9 +226,6 @@ export type RPCNativeClientNetworksEvents = {
 	) => void
 }
 
-/**
- * https://docs.fivem.net/docs/game-references/game-events/
- */
 export type RPCNativeClientNetworkEventsNames =
 	| 'CEventAcquaintancePed'
 	| 'CEventAcquaintancePedDead'

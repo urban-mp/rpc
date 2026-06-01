@@ -1,7 +1,6 @@
 import { RPCErrors } from './types'
 
 export class Emitter {
-	/** Map<event, [callback function, once]> */
 	private _storage: Map<string, [(...args: any[]) => any, boolean]>
 
 	constructor() {

@@ -1,4 +1,4 @@
-import type * as s from '@entityseven/fivem-rpc-shared-types'
+import type * as s from '../../../shared-types'
 import { Emitter } from '../utils/emitter'
 import { generateUUID, parse, stringify, stringifyWeb } from '../utils/funcs'
 import {
@@ -24,6 +24,7 @@ declare function RegisterNuiCallbackType(callbackType: string): void
 declare function GetPlayerServerId(player: number): number
 declare function PlayerId(): number
 declare function SetNuiFocus(hasFocus: boolean, hasCursor: boolean): void
+declare function GetCurrentResourceName(): string
 declare function RegisterCommand(
 	commandName: string,
 	handler: Function,
@@ -40,6 +41,7 @@ export class RPCInstanceClient extends Wrapper {
 
 	constructor(props: RPCConfig<'client'>) {
 		super(props)
+		this.resourceName = props.resourceName ?? GetCurrentResourceName()
 
 		this._emitterServer = new Emitter()
 		this._pendingServer = new Emitter()
@@ -60,8 +62,6 @@ export class RPCInstanceClient extends Wrapper {
 		)
 	}
 
-	// ===== HANDLERS =====
-
 	private async _handleServer(payloadRaw: RPCStateRaw) {
 		try {
 			parse(payloadRaw)
@@ -69,6 +69,7 @@ export class RPCInstanceClient extends Wrapper {
 			throw new Error(RPCErrors.INVALID_DATA)
 		}
 		const payload = parse(payloadRaw)
+		if (!this.isTargetResource(payload)) return
 
 		if (this.debug) {
 			this.console.log(
@@ -90,6 +91,8 @@ export class RPCInstanceClient extends Wrapper {
 					uuid: payload.uuid,
 					calledFrom: 'client',
 					calledTo: 'server',
+					sourceResource: this.resourceName,
+					targetResource: payload.sourceResource,
 					error: null,
 					data: [responseData],
 					player: payload.player,
@@ -130,6 +133,8 @@ export class RPCInstanceClient extends Wrapper {
 
 		if (payload.type === 'event') {
 			if (payload.calledTo === 'client') {
+				if (!this.isTargetResource(payload)) return { status: 'ignored' }
+
 				return await this._emitterWeb.emit(
 					payload.event,
 					...(payload.data && payload.data.length > 0 ? payload.data : []),
@@ -147,6 +152,8 @@ export class RPCInstanceClient extends Wrapper {
 
 		if (payload.type === 'response') {
 			if (payload.calledTo === 'client') {
+				if (!this.isTargetResource(payload)) return { status: 'ignored' }
+
 				await this._pendingWeb.emit(
 					payload.uuid,
 					...(payload.data && payload.data.length > 0 ? payload.data : []),
@@ -163,8 +170,6 @@ export class RPCInstanceClient extends Wrapper {
 		}
 		return { status: 'unknown' }
 	}
-
-	// ===== SERVER =====
 
 	public onServer<
 		EventName extends keyof s.RPCEvents_ServerClient,
@@ -201,12 +206,18 @@ export class RPCInstanceClient extends Wrapper {
 		EventName extends keyof s.RPCEvents_ClientServer,
 		Arguments extends Parameters<s.RPCEvents_ClientServer[EventName]>,
 		Response extends ReturnType<s.RPCEvents_ClientServer[EventName]>,
-	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
+	>(
+		resourceName: string,
+		eventName: EventName,
+		...args: Arguments
+	): Promise<Awaited<Response>> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
 			calledFrom: 'client',
 			calledTo: 'server',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: GetPlayerServerId(PlayerId()),
@@ -219,8 +230,6 @@ export class RPCInstanceClient extends Wrapper {
 			this._pendingServer.once(payload.uuid, res)
 		})
 	}
-
-	// ===== WEBVIEW =====
 
 	public onWebview<
 		EventName extends keyof s.RPCEvents_WebviewClient,
@@ -257,12 +266,18 @@ export class RPCInstanceClient extends Wrapper {
 		EventName extends keyof s.RPCEvents_ClientWebview,
 		Arguments extends Parameters<s.RPCEvents_ClientWebview[EventName]>,
 		Response extends ReturnType<s.RPCEvents_ClientWebview[EventName]>,
-	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
+	>(
+		resourceName: string,
+		eventName: EventName,
+		...args: Arguments
+	): Promise<Awaited<Response>> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
 			calledFrom: 'client',
 			calledTo: 'webview',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: PlayerId(),
@@ -278,8 +293,6 @@ export class RPCInstanceClient extends Wrapper {
 			this._pendingWeb.once(payload.uuid, res)
 		})
 	}
-
-	// ===== SELF =====
 
 	public onSelf<
 		EventName extends keyof s.RPCEvents_Client,
@@ -322,6 +335,8 @@ export class RPCInstanceClient extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'client',
 			calledTo: 'client',
+			sourceResource: this.resourceName,
+			targetResource: this.resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: null,
@@ -341,8 +356,6 @@ export class RPCInstanceClient extends Wrapper {
 			...(payload.data && payload.data.length > 0 ? payload.data : []),
 		)
 	}
-
-	// ===== OTHER =====
 
 	public onCommand<
 		CommandName extends s.RPCCommands_Client,
@@ -405,8 +418,6 @@ export class RPCInstanceClient extends Wrapper {
 
 		return this
 	}
-
-	// ===== UTILS =====
 
 	private _sendWebMessage(payload: RPCStateWeb): void {
 		SendNuiMessage(stringifyWeb(payload))

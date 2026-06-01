@@ -1,4 +1,4 @@
-import type * as s from '@entityseven/fivem-rpc-shared-types'
+import type * as s from '../../../shared-types'
 import { Emitter } from '../utils/emitter'
 import { generateUUID, parse, stringify } from '../utils/funcs'
 import { NATIVE_SERVER_EVENTS } from '../utils/native'
@@ -15,6 +15,7 @@ import { Wrapper } from './wrapper'
 declare function onNet(eventName: string, callback: Function): void
 declare function emitNet(eventName: string, ...args: unknown[]): void
 declare function on(eventName: string, callback: Function): void
+declare function GetCurrentResourceName(): string
 declare function RegisterCommand(
 	commandName: string,
 	handler: Function,
@@ -29,6 +30,7 @@ export class RPCInstanceServer extends Wrapper {
 
 	constructor(props: RPCConfig<'server'>) {
 		super(props)
+		this.resourceName = props.resourceName ?? GetCurrentResourceName()
 
 		this._emitterClient = new Emitter()
 		this._pendingClient = new Emitter()
@@ -41,8 +43,6 @@ export class RPCInstanceServer extends Wrapper {
 		onNet(RPCEvents.LISTENER_WEB, this._handleWeb.bind(this))
 	}
 
-	// ===== HANDLERS =====
-
 	private async _handleClient(payloadRaw: RPCStateRaw) {
 		try {
 			parse(payloadRaw)
@@ -50,6 +50,7 @@ export class RPCInstanceServer extends Wrapper {
 			throw new Error(RPCErrors.INVALID_DATA)
 		}
 		const payload = parse(payloadRaw)
+		if (!this.isTargetResource(payload)) return
 
 		if (this.debug) {
 			this.console.log(
@@ -77,6 +78,8 @@ export class RPCInstanceServer extends Wrapper {
 					uuid: payload.uuid,
 					calledFrom: 'server',
 					calledTo: 'client',
+					sourceResource: this.resourceName,
+					targetResource: payload.sourceResource,
 					error: null,
 					data: [responseData],
 					player: payload.player,
@@ -101,6 +104,7 @@ export class RPCInstanceServer extends Wrapper {
 			throw new Error(RPCErrors.INVALID_DATA)
 		}
 		const payload = parse(payloadRaw)
+		if (!this.isTargetResource(payload)) return
 
 		if (this.debug) {
 			this.console.log(
@@ -128,6 +132,8 @@ export class RPCInstanceServer extends Wrapper {
 					uuid: payload.uuid,
 					calledFrom: 'server',
 					calledTo: 'webview',
+					sourceResource: this.resourceName,
+					targetResource: payload.sourceResource,
 					error: null,
 					data: [responseData],
 					player: payload.player,
@@ -144,8 +150,6 @@ export class RPCInstanceServer extends Wrapper {
 			}
 		}
 	}
-
-	// ===== CLIENT =====
 
 	public onClient<
 		EventName extends keyof s.RPCEvents_ClientServer,
@@ -185,6 +189,7 @@ export class RPCInstanceServer extends Wrapper {
 		Response extends ReturnType<s.RPCEvents_ServerClient[EventName]>,
 	>(
 		player: number,
+		resourceName: string,
 		eventName: EventName,
 		...args: Arguments
 	): Promise<Awaited<Response>> {
@@ -193,6 +198,8 @@ export class RPCInstanceServer extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'server',
 			calledTo: 'client',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: player,
@@ -209,12 +216,14 @@ export class RPCInstanceServer extends Wrapper {
 	public async emitClientEveryone<
 		EventName extends keyof s.RPCEvents_ServerClient,
 		Arguments extends Parameters<s.RPCEvents_ServerClient[EventName]>,
-	>(eventName: EventName, ...args: Arguments): Promise<void> {
+	>(resourceName: string, eventName: EventName, ...args: Arguments): Promise<void> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
 			calledFrom: 'server',
 			calledTo: 'client',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: -1,
@@ -223,8 +232,6 @@ export class RPCInstanceServer extends Wrapper {
 
 		emitNet(RPCEvents.LISTENER_SERVER, -1, stringify(payload))
 	}
-
-	// ===== WEBVIEW =====
 
 	public onWebview<
 		EventName extends keyof s.RPCEvents_WebviewServer,
@@ -264,6 +271,7 @@ export class RPCInstanceServer extends Wrapper {
 		Response extends ReturnType<s.RPCEvents_ServerWebview[EventName]>,
 	>(
 		player: number,
+		resourceName: string,
 		eventName: EventName,
 		...args: Arguments
 	): Promise<Awaited<Response>> {
@@ -272,6 +280,8 @@ export class RPCInstanceServer extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'server',
 			calledTo: 'webview',
+			sourceResource: this.resourceName,
+			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: player,
@@ -284,8 +294,6 @@ export class RPCInstanceServer extends Wrapper {
 			this._pendingWeb.once(payload.uuid, res)
 		})
 	}
-
-	// ===== SELF =====
 
 	public onSelf<
 		EventName extends keyof s.RPCEvents_Server,
@@ -328,6 +336,8 @@ export class RPCInstanceServer extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'server',
 			calledTo: 'server',
+			sourceResource: this.resourceName,
+			targetResource: this.resourceName,
 			error: null,
 			data: args.length ? args : null,
 			player: null,
@@ -347,8 +357,6 @@ export class RPCInstanceServer extends Wrapper {
 			...(payload.data && payload.data.length > 0 ? payload.data : []),
 		)
 	}
-
-	// ===== OTHER =====
 
 	public onCommand<
 		CommandName extends s.RPCCommands_Server,

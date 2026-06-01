@@ -1,300 +1,410 @@
 # FiveM RPC
-is an all-in package with asynchronous RPC implementation for RageMP servers in JS/TS. [Extra info](https://github.com/rilaxik/fivem-rpc/blob/master/readme.md)
 
-# Motivation
-The idea was to create an extensible package, with various features to simplify the development process and provide as much comfort as possible. Inspired by usage of [altv-xrpc](https://github.com/xxshady/altv-xrpc)
+Type-safe asynchronous RPC for FiveM resources. Use one small API to communicate between server, client, and NUI webview code with request/response semantics.
 
-# Installation
+[![npm package](https://img.shields.io/npm/v/@urban-mp/rpc?label=npm)](https://www.npmjs.com/package/@urban-mp/rpc)
+[![TypeScript](https://img.shields.io/badge/TypeScript-ready-3178c6)](https://www.typescriptlang.org/)
+[![FiveM](https://img.shields.io/badge/FiveM-runtime-orange)](https://fivem.net/)
+
+## Highlights
+
+- Promise-based calls across `server`, `client`, and `webview`
+- Strict TypeScript support through `@urban-mp/rpc-types`
+- One RPC instance per runtime environment
+- Native FiveM event helpers for client and server runtimes
+- Resource-targeted NUI calls from webview code
+
+## Installation
+
 ```bash
-  pnpm i @entityseven/fivem-rpc
-```
-```bash
-  yarn add @entityseven/fivem-rpc
-```
-```bash
-  bun add @entityseven/fivem-rpc
-```
-It is highly recommended to also install additional package for enhanced typing
-```bash
-  pnpm i @entityseven/fivem-rpc-shared-types -D
-```
-```bash
-  yarn add @entityseven/fivem-rpc-shared-types --dev
-```
-```bash
-  bun add @entityseven/fivem-rpc-shared-types -d
+pnpm add @urban-mp/rpc
 ```
 
-## Usage
-FiveM RPC is meant to be a singletone per environment. This means you _must create only one_ `RPCFactory` per your server/client/web. This also enables modifying `const rpc` to your needs, adding new methods or variables by forcing you to import it from file instead of library reference
+```bash
+yarn add @urban-mp/rpc
+```
+
+```bash
+bun add @urban-mp/rpc
+```
+
+Install the shared types package when you want strongly typed event names, payloads, and return values.
+
+```bash
+pnpm add -D @urban-mp/rpc-types
+```
+
+```bash
+yarn add -D @urban-mp/rpc-types
+```
+
+```bash
+bun add -d @urban-mp/rpc-types
+```
+
+## Quick Start
+
+Create one RPC instance per environment and export it from your own local module.
+
 ```ts
-// lib/rpc.ts
-import { RPCFactory } from '@entityseven/fivem-rpc'
-export const rpc = new RPCFactory(/* options */).get()
+import { RPC } from '@urban-mp/rpc'
+
+export const rpc = new RPC({ env: 'client' }).get()
 ```
 
-# Docs
+Server runtime:
 
-## Extras
-Along with `RPCFactory` you can also import all the types used internally, types for native client/server events and lists of native client/server events. All of that is documented in JSDoc, so no need to duplicate it here
-
-## RPCConfig
 ```ts
-type RPCConfig<T extends RPCEnvironment | unknown> = {
-    env: T 
-    debug?: boolean
+import { RPC } from '@urban-mp/rpc'
+
+export const rpc = new RPC({ env: 'server' }).get()
+```
+
+Webview runtime:
+
+```ts
+import { RPC } from '@urban-mp/rpc'
+
+export const rpc = new RPC({ env: 'webview' }).get()
+```
+
+Webview with a fixed target resource:
+
+```ts
+import { RPC } from '@urban-mp/rpc'
+
+export const rpc = new RPC({
+	env: 'webview',
+	resourceName: 'target_resource',
+}).get()
+```
+
+## Runtime Matrix
+
+| From | To | Listen with | Call with |
+| --- | --- | --- | --- |
+| Server | Server | `onSelf` | `emitSelf` |
+| Server | Client | `onServer` on client | `emitClient`, `emitClientEveryone` |
+| Server | Webview | `onServer` on webview | `emitWebview` |
+| Client | Client | `onSelf` | `emitSelf` |
+| Client | Server | `onClient` on server | `emitServer` |
+| Client | Webview | `onClient` on webview | `emitWebview` |
+| Webview | Webview | `onSelf` | `emitSelf` |
+| Webview | Client | `onWebview` on client | `emitClient` |
+| Webview | Server | `onWebview` on server | `emitServer` |
+
+Every cross-runtime emit receives `resourceName` before `eventName`. The payload is processed only by the RPC instance running inside that target resource, and the response is routed back to the source resource automatically.
+
+```ts
+await rpc.emitServer('server_resource', 'profile:get')
+await rpc.emitWebview('ui_resource', 'settings:get', 'volume')
+await rpc.emitClient(player, 'client_resource', 'hud:getState')
+```
+
+## Configuration
+
+```ts
+type RPCConfig<T> = {
+	env: T
+	debug?: boolean
+	resourceName?: string
 }
 ```
-Failing to set `env` to provided type will result in `RPCErrors.UNKNOWN_ENVIRONMENT`
-`debug` adds additional console logs to events
 
+| Option | Runtime | Description |
+| --- | --- | --- |
+| `env` | All | Selects the runtime instance: `server`, `client`, or `webview`. |
+| `debug` | All | Enables verbose RPC logs. |
+| `resourceName` | All | Overrides the local resource name used as the RPC source. Server/client default to `GetCurrentResourceName()`, webview defaults to `GetParentResourceName()`. |
 
-## Errors
-Known errors could be one of following or an error throw by a callback specifically
+## Server API
+
+### `onClient`
+
+Listen for client-to-server calls.
+
 ```ts
-enum RPCErrors {
-    EVENT_NOT_REGISTERED = 'Event not registered',
-    INVALID_DATA = 'Invalid data (possibly broken JSON)',
-    NO_PLAYER = 'No player (failed to resolve from local index)',
-    UNKNOWN_NATIVE = 'Unknown native event (if you are sure this exists - use native handler)',
-    UNKNOWN_ENVIRONMENT = 'Unknown environment (must be either "server", "client" or "webview")',
-}
-```
-
-### Example error
-Values wrapped in `<>` always exist, just not relevant for an example. Keep in mind that some errors are thrown in their destination(`To`) point: this example will throw on server
-```
-Error: No player (failed to resolve from local index)
-Event: 'clientServerEvent'
-Uuid: <uuid>
-From: 'client'
-To: 'server'
-Player: <non-existent-player>
-Type: 'event'
-Data: [<data>]
-```
-
-## Server ([source](https://github.com/rilaxik/fivem-rpc/blob/master/rpc/src/core/server.ts))
-### onClient
-Listens to client event
-```ts
-rpc.onClient('clientServerEvent', (player, arg1, arg2, ...rest) => {
-    // logic
-    return someData // this will be forwarded back to caller
+rpc.onClient('inventory:get', async (player, itemId) => {
+	return getInventoryItem(player, itemId)
 })
 ```
-### offClient
-Stops listening to client event
+
+### `emitClient`
+
+Call one client and wait for the response.
+
 ```ts
-rpc.offClient('clientServerEvent')
+const state = await rpc.emitClient(player, 'hud_resource', 'hud:getState')
 ```
-### emitClient
-Sends event to specified client
+
+### `emitClientEveryone`
+
+Broadcast an event to every client without waiting for a response.
+
 ```ts
-const response = await rpc.emitClient(playerServerId, 'serverClientEvent', someData) 
-// response will come from client listener with returned data
+await rpc.emitClientEveryone('hud_resource', 'hud:notify', 'Server restart in 10 minutes')
 ```
-### emitClientEveryone
-Sends event to all clients
+
+### `onWebview`
+
+Listen for webview-to-server calls.
+
 ```ts
-rpc.emitClientEveryone('serverClientEvent', someData)
-```
-### onWebview
-Listens to webview event
-```ts
-rpc.onWebview('webviewServerEvent', (player, arg1, arg2, ...rest) => {
-    // logic
-    return someData // this will be forwarded back to caller
+rpc.onWebview('profile:save', async (player, payload) => {
+	return saveProfile(player, payload)
 })
 ```
-### offWebview
-Stops listening to webview event
+
+### `emitWebview`
+
+Call a player's webview from the server.
+
 ```ts
-rpc.offWebview('webviewServerEvent')
-```
-### emitWebview
-Sends event to specified webview
-```ts
-const response = await rpc.emitWebview(playerServerId, 'serverWebviewEvent', someData)
-// response will come from webview listener with returned data
-```
-### onSelf
-Listens to server event
-```ts
-rpc.onSelf('serverEvent', (arg1, arg2, ...rest) => {
-    // logic 
-    return someData // this will be forwarded back to caller
+const accepted = await rpc.emitWebview(player, 'ui_resource', 'modal:confirm', {
+	title: 'Confirm purchase',
 })
 ```
-### offSelf
-Stops listening to server event
+
+### `onSelf` and `emitSelf`
+
+Use local server-only RPC calls.
+
 ```ts
-rpc.offSelf('serverEvent')
+rpc.onSelf('cache:flush', async () => true)
+
+const flushed = await rpc.emitSelf('cache:flush')
 ```
-### emitSelf
-Sends event to server
+
+### `onCommand`
+
+Register a FiveM command.
+
 ```ts
-const response = await rpc.emitSelf('serverEvent', someData)
-// response will come from server listener with returned data
-```
-### onCommand
-Registers chat command. Since arguments are untyped you must validate them yourself
-```ts
-rpc.onCommand('serverCommand', (player, args, commandRaw) => {
-    // logic
+rpc.onCommand('report', (player, args, commandRaw) => {
+	createReport(player, args, commandRaw)
 })
 ```
-### onNativeEvent
-Listens to native server event ([reference](https://docs.fivem.net/docs/scripting-reference/events/server-events/))
+
+### `onNativeEvent`
+
+Subscribe to supported native server events.
+
 ```ts
 rpc.onNativeEvent('playerJoining', (source, oldId) => {
-    // logic
+	trackJoin(source, oldId)
 })
 ```
 
-## Client ([source](https://github.com/rilaxik/fivem-rpc/blob/master/rpc/src/core/client.ts))
-### onServer
-Listens to server event
+## Client API
+
+### `onServer`
+
+Listen for server-to-client calls.
+
 ```ts
-rpc.onServer('serverClientEvent', (arg1, arg2, ...rest) => {
-    // logic
-    return someData // this will be forwarded back to caller
+rpc.onServer('hud:getState', async () => {
+	return getHudState()
 })
 ```
-### offServer
-Stops listening to server event
+
+### `emitServer`
+
+Call the server from the client.
+
 ```ts
-rpc.offServer('serverClientEvent')
+const profile = await rpc.emitServer('server_resource', 'profile:get')
 ```
-### emitServer
-Sends event to server
+
+### `onWebview`
+
+Listen for webview-to-client calls.
+
 ```ts
-const response = await rpc.emitServer('clientServerEvent', someData)
-// response will come from webview listener with returned data
-```
-### onWebview
-Listens to webview event
-```ts
-rpc.onWebview('webviewClientEvent', (arg1, arg2, ...rest) => {
-    // logic
-    return someData // this will be forwarded back to caller
+rpc.onWebview('camera:setMode', async mode => {
+	return setCameraMode(mode)
 })
 ```
-### offWebview
-Stops listening to webview event
+
+### `emitWebview`
+
+Call the active webview from the client.
+
 ```ts
-rpc.offWebview('webviewClientEvent')
+const value = await rpc.emitWebview('ui_resource', 'settings:get', 'volume')
 ```
-### emitWebview
-Sends event to specified webview
+
+### `onSelf` and `emitSelf`
+
+Use local client-only RPC calls.
+
 ```ts
-const response = await rpc.emitWebview('clientWebviewEvent', someData)
-// response will come from webview listener with returned data
+rpc.onSelf('player:getPosition', async () => GetEntityCoords(PlayerPedId(), false))
+
+const position = await rpc.emitSelf('player:getPosition')
 ```
-### onSelf
-Listens to client event
+
+### `onCommand`
+
+Register a client command.
+
 ```ts
-rpc.onSelf('clientEvent', (arg1, arg2, ...rest) => {
-    // logic 
-    return someData // this will be forwarded back to caller
+rpc.onCommand('toggleui', () => {
+	toggleUi()
 })
 ```
-### offSelf
-Stops listening to client event
+
+### `onNativeEvent`
+
+Subscribe to supported native client events.
+
 ```ts
-rpc.offSelf('clientEvent')
-```
-### emitSelf
-Sends event to client
-```ts
-const response = await rpc.emitSelf('clientEvent', someData)
-// response will come from client listener with returned data
-```
-### onCommand
-Registers chat command. Since arguments are untyped you must validate them yourself
-```ts
-rpc.onCommand('clientCommand', (player, args, commandRaw) => {
-    // logic
+rpc.onNativeEvent('entityDamaged', (victim, culprit, weapon, damage) => {
+	trackDamage(victim, culprit, weapon, damage)
 })
 ```
-### onNativeEvent
-Listens to native client event ([reference](https://docs.fivem.net/docs/scripting-reference/events/client-events/))
-```ts
-rpc.onNativeEvent('entityDamaged', (victim, culprit, weapon, baseDamage) => {
-    // logic
-})
-```
-### onNativeNetworkEvent
-Listens to native client network event ([reference](https://docs.fivem.net/docs/game-references/game-events/))
+
+### `onNativeNetworkEvent`
+
+Subscribe to supported network game events.
+
 ```ts
 rpc.onNativeNetworkEvent('CEventShockingCarCrash', (entities, eventEntity, data) => {
-    // logic
+	trackCrash(entities, eventEntity, data)
 })
-```
-### setWebviewFocus
-Sets or removes focus and cursor from own webview
-```ts
-rpc.setWebviewFocus(true /* focus */, true /* show cursor */)
 ```
 
-## Webview ([source](https://github.com/rilaxik/fivem-rpc/blob/master/rpc/src/core/webview.ts))
-### onClient
-Listens to client event
+### `setWebviewFocus`
+
+Control NUI focus and cursor state.
+
 ```ts
-rpc.onClient('clientWebviewEvent', (arg1, arg2, ...rest) => {
-    // logic
-    return someData // this will be forwarded back to caller
-})
-```
-### offClient
-Stops listening to client event
-```ts
-rpc.offClient('clientWebviewEvent')
-```
-### emitClient
-Sends event to own client
-```ts
-const response = await rpc.emitClient('webviewClientEvent', someData) 
-// response will come from client listener with returned data
-```
-### onServer
-Listens to server event
-```ts
-rpc.onServer('serverWebviewEvent', (arg1, arg2, ...rest) => {
-    // logic
-    return someData // this will be forwarded back to caller
-})
-```
-### offServer
-Stops listening to server event
-```ts
-rpc.offServer('serverWebviewEvent')
-```
-### emitServer
-Sends event to server
-```ts
-const response = await rpc.emitServer('webviewServerEvent', someData)
-// response will come from webview listener with returned data
-```
-### onSelf
-Listens to webview event
-```ts
-rpc.onSelf('webviewEvent', (arg1, arg2, ...rest) => {
-    // logic 
-    return someData // this will be forwarded back to caller
-})
-```
-### offSelf
-Stops listening to webview event
-```ts
-rpc.offSelf('webviewEvent')
-```
-### emitSelf
-Sends event to webview
-```ts
-const response = await rpc.emitSelf('webviewEvent', someData)
-// response will come from webview listener with returned data
+rpc.setWebviewFocus(true, true)
 ```
 
-# License
-Licensed under Custom Attribution-NoDerivs Software License
+## Webview API
+
+### `onClient`
+
+Listen for client-to-webview calls.
+
+```ts
+rpc.onClient('settings:get', async key => {
+	return settings[key]
+})
+```
+
+### `emitClient`
+
+Call the owning client from the webview.
+
+```ts
+const cameraMode = await rpc.emitClient('client_resource', 'camera:getMode')
+```
+
+### `onServer`
+
+Listen for server-to-webview calls.
+
+```ts
+rpc.onServer('modal:confirm', async payload => {
+	return openConfirmModal(payload)
+})
+```
+
+### `emitServer`
+
+Call the server from the webview.
+
+```ts
+const saved = await rpc.emitServer('server_resource', 'profile:save', formData)
+```
+
+### `onSelf` and `emitSelf`
+
+Use local webview-only RPC calls.
+
+```ts
+rpc.onSelf('theme:get', async () => currentTheme)
+
+const theme = await rpc.emitSelf('theme:get')
+```
+
+## Typed Events
+
+Create a shared declaration file that is included by your server, client, and webview TypeScript projects.
+
+```ts
+declare module '@urban-mp/rpc-types' {
+	export type RPCCommands_Client = 'toggleui'
+	export type RPCCommands_Server = 'report'
+
+	export interface RPCEvents_Client {
+		'player:getPosition'(): [number, number, number]
+	}
+
+	export interface RPCEvents_ClientServer {
+		'profile:get'(): { name: string; level: number }
+	}
+
+	export interface RPCEvents_ClientWebview {
+		'settings:get'(key: string): unknown
+	}
+
+	export interface RPCEvents_Server {
+		'cache:flush'(): boolean
+	}
+
+	export interface RPCEvents_ServerClient {
+		'hud:getState'(): { visible: boolean }
+	}
+
+	export interface RPCEvents_ServerWebview {
+		'modal:confirm'(payload: { title: string }): boolean
+	}
+
+	export interface RPCEvents_Webview {
+		'theme:get'(): string
+	}
+
+	export interface RPCEvents_WebviewClient {
+		'camera:getMode'(): string
+	}
+
+	export interface RPCEvents_WebviewServer {
+		'profile:save'(payload: Record<string, unknown>): boolean
+	}
+}
+```
+
+Reference that declaration from each runtime `tsconfig.json`.
+
+```json
+{
+	"compilerOptions": {
+		"types": ["../shared/rpc"]
+	}
+}
+```
+
+## Errors
+
+| Error | Meaning |
+| --- | --- |
+| `EVENT_NOT_REGISTERED` | The target listener was not registered. |
+| `INVALID_DATA` | The received RPC payload could not be parsed. |
+| `NO_PLAYER` | FiveM could not resolve the player for the request. |
+| `UNKNOWN_NATIVE` | The native event name is not available in the typed list. |
+| `UNKNOWN_ENVIRONMENT` | The RPC environment is not `server`, `client`, or `webview`. |
+
+## Exports
+
+```ts
+import { RPC } from '@urban-mp/rpc'
+import type { RPCConfig, RPCEnvironment } from '@urban-mp/rpc'
+```
+
+`RPCFactory` is still exported as an alias for existing projects, but new code should use `RPC`.
+
+## License
+
+Licensed under the Custom Attribution-NoDerivs Software License.
