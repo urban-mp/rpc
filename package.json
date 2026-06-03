@@ -5,10 +5,11 @@
 	],
 	"devDependencies": {
 		"@biomejs/biome": "^2.1.1",
-		"@types/bun": "^1.2.18"
+		"@types/bun": "^1.2.18",
+		"typescript": "^6.0.3"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^6"
 	},
 	"scripts": {
 		"check": "bunx biome check",

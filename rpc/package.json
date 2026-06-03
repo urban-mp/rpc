@@ -1,7 +1,7 @@
 {
 	"name": "@urban-mp/rpc",
 	"description": "FiveM RPC is an all-in-one package with asynchronous RPC implementation for FiveM servers in JS/TS",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"files": [
@@ -25,7 +25,7 @@
 	"license": "Custom-Attribution-NoDerivs",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/urban-mp/rpc.git"
+		"url": "git+https://github.com/urban-mp/rpc.git"
 	},
 	"scripts": {
 		"build": "tsup"
@@ -37,6 +37,6 @@
 		"tsup": "^8.3.0"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^6"
 	}
 }

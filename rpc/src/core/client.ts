@@ -1,4 +1,4 @@
-import type * as s from '../../../shared-types'
+import type * as s from '@urban-mp/rpc-types'
 import { Emitter } from '../utils/emitter'
 import { generateUUID, parse, stringify, stringifyWeb } from '../utils/funcs'
 import {
@@ -7,6 +7,8 @@ import {
 } from '../utils/native'
 import {
 	type RPCConfig,
+	type RPCEventArguments,
+	type RPCEventResponse,
 	RPCErrors,
 	RPCEvents,
 	type RPCNativeClientEvents,
@@ -142,11 +144,13 @@ export class RPCInstanceClient extends Wrapper {
 			}
 			if (payload.calledTo === 'server') {
 				payload.player = GetPlayerServerId(PlayerId())
-				emitNet(RPCEvents.LISTENER_WEB, stringify(payload))
-
-				return new Promise(res => {
+				const responsePromise = new Promise(res => {
 					this._pendingWebToServer.once(payload.uuid, res)
 				})
+
+				emitNet(RPCEvents.LISTENER_WEB, stringify(payload))
+
+				return responsePromise
 			}
 		}
 
@@ -172,9 +176,9 @@ export class RPCInstanceClient extends Wrapper {
 	}
 
 	public onServer<
-		EventName extends keyof s.RPCEvents_ServerClient,
-		CallbackArguments extends Parameters<s.RPCEvents_ServerClient[EventName]>,
-		CallbackReturn extends ReturnType<s.RPCEvents_ServerClient[EventName]>,
+		EventName extends string,
+		CallbackArguments extends RPCEventArguments<s.RPCEvents_ServerClient, EventName>,
+		CallbackReturn extends RPCEventResponse<s.RPCEvents_ServerClient, EventName>,
 	>(
 		eventName: EventName,
 		cb: (
@@ -190,7 +194,7 @@ export class RPCInstanceClient extends Wrapper {
 		return this
 	}
 
-	public offServer<EventName extends keyof s.RPCEvents_ServerClient>(
+	public offServer<EventName extends string>(
 		eventName: EventName,
 	): this {
 		if (this.debug) {
@@ -203,9 +207,9 @@ export class RPCInstanceClient extends Wrapper {
 	}
 
 	public async emitServer<
-		EventName extends keyof s.RPCEvents_ClientServer,
-		Arguments extends Parameters<s.RPCEvents_ClientServer[EventName]>,
-		Response extends ReturnType<s.RPCEvents_ClientServer[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_ClientServer, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_ClientServer, EventName>,
 	>(
 		resourceName: string,
 		eventName: EventName,
@@ -224,17 +228,19 @@ export class RPCInstanceClient extends Wrapper {
 			type: 'event',
 		}
 
-		emitNet(RPCEvents.LISTENER_CLIENT, stringify(payload))
-
-		return new Promise<Awaited<Response>>(res => {
+		const responsePromise = new Promise<Awaited<Response>>(res => {
 			this._pendingServer.once(payload.uuid, res)
 		})
+
+		emitNet(RPCEvents.LISTENER_CLIENT, stringify(payload))
+
+		return responsePromise
 	}
 
 	public onWebview<
-		EventName extends keyof s.RPCEvents_WebviewClient,
-		CallbackArguments extends Parameters<s.RPCEvents_WebviewClient[EventName]>,
-		CallbackReturn extends ReturnType<s.RPCEvents_WebviewClient[EventName]>,
+		EventName extends string,
+		CallbackArguments extends RPCEventArguments<s.RPCEvents_WebviewClient, EventName>,
+		CallbackReturn extends RPCEventResponse<s.RPCEvents_WebviewClient, EventName>,
 	>(
 		eventName: EventName,
 		cb: (
@@ -250,7 +256,7 @@ export class RPCInstanceClient extends Wrapper {
 		return this
 	}
 
-	public offWebview<EventName extends keyof s.RPCEvents_WebviewClient>(
+	public offWebview<EventName extends string>(
 		eventName: EventName,
 	): this {
 		if (this.debug) {
@@ -263,9 +269,9 @@ export class RPCInstanceClient extends Wrapper {
 	}
 
 	public async emitWebview<
-		EventName extends keyof s.RPCEvents_ClientWebview,
-		Arguments extends Parameters<s.RPCEvents_ClientWebview[EventName]>,
-		Response extends ReturnType<s.RPCEvents_ClientWebview[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_ClientWebview, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_ClientWebview, EventName>,
 	>(
 		resourceName: string,
 		eventName: EventName,
@@ -284,20 +290,22 @@ export class RPCInstanceClient extends Wrapper {
 			type: 'event',
 		}
 
+		const responsePromise = new Promise<Awaited<Response>>(res => {
+			this._pendingWeb.once(payload.uuid, res)
+		})
+
 		this._sendWebMessage({
 			origin: RPCEvents.LISTENER_CLIENT,
 			data: payload,
 		})
 
-		return new Promise<Awaited<Response>>(res => {
-			this._pendingWeb.once(payload.uuid, res)
-		})
+		return responsePromise
 	}
 
 	public onSelf<
-		EventName extends keyof s.RPCEvents_Client,
-		CallbackArguments extends Parameters<s.RPCEvents_Client[EventName]>,
-		CallbackReturn extends ReturnType<s.RPCEvents_Client[EventName]>,
+		EventName extends string,
+		CallbackArguments extends RPCEventArguments<s.RPCEvents_Client, EventName>,
+		CallbackReturn extends RPCEventResponse<s.RPCEvents_Client, EventName>,
 	>(
 		eventName: EventName,
 		cb: (
@@ -313,7 +321,7 @@ export class RPCInstanceClient extends Wrapper {
 		return this
 	}
 
-	public offSelf<EventName extends keyof s.RPCEvents_Client>(
+	public offSelf<EventName extends string>(
 		eventName: EventName,
 	): this {
 		if (this.debug) {
@@ -326,9 +334,9 @@ export class RPCInstanceClient extends Wrapper {
 	}
 
 	public async emitSelf<
-		EventName extends keyof s.RPCEvents_Client,
-		Arguments extends Parameters<s.RPCEvents_Client[EventName]>,
-		Response extends ReturnType<s.RPCEvents_Client[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_Client, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_Client, EventName>,
 	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
 		const payload: RPCState = {
 			event: eventName,

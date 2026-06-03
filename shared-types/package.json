@@ -1,7 +1,7 @@
 {
 	"name": "@urban-mp/rpc-types",
 	"description": "Shared (enhanced) types for @urban-mp/rpc. Highly recommended to install together",
-	"version": "0.1.0",
+	"version": "0.1.2",
 	"types": "types/types/index.d.ts",
 	"files": [
 		"types/**/*",
@@ -28,6 +28,6 @@
 		"url": "https://github.com/urban-mp/rpc.git"
 	},
 	"peerDependencies": {
-		"typescript": "^5"
+		"typescript": "^6"
 	}
 }

@@ -4,6 +4,8 @@ import { generateUUID, stringify } from '../utils/funcs'
 import {
 	RPCEvents,
 	type RPCConfig,
+	type RPCEventArguments,
+	type RPCEventResponse,
 	type RPCState,
 	type RPCStateRaw,
 	type RPCStateWeb,
@@ -109,9 +111,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public onClient<
-		EventName extends keyof s.RPCEvents_ClientWebview,
-		CallbackArguments extends Parameters<s.RPCEvents_ClientWebview[EventName]>,
-		CallbackReturn extends ReturnType<s.RPCEvents_ClientWebview[EventName]>,
+		EventName extends string,
+		CallbackArguments extends RPCEventArguments<s.RPCEvents_ClientWebview, EventName>,
+		CallbackReturn extends RPCEventResponse<s.RPCEvents_ClientWebview, EventName>,
 	>(
 		eventName: EventName,
 		cb: (
@@ -127,7 +129,7 @@ export class RPCInstanceWebview extends Wrapper {
 		return this
 	}
 
-	public offClient<EventName extends keyof s.RPCEvents_ClientWebview>(
+	public offClient<EventName extends string>(
 		eventName: EventName,
 	): this {
 		if (this.debug) {
@@ -140,9 +142,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public async emitClient<
-		EventName extends keyof s.RPCEvents_WebviewClient,
-		Arguments extends Parameters<s.RPCEvents_WebviewClient[EventName]>,
-		Response extends ReturnType<s.RPCEvents_WebviewClient[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_WebviewClient, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_WebviewClient, EventName>,
 	>(
 		resourceName: string,
 		eventName: EventName,
@@ -156,9 +158,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	private async _emitClient<
-		EventName extends keyof s.RPCEvents_WebviewClient,
-		Arguments extends Parameters<s.RPCEvents_WebviewClient[EventName]>,
-		Response extends ReturnType<s.RPCEvents_WebviewClient[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_WebviewClient, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_WebviewClient, EventName>,
 	>(
 		eventName: EventName,
 		args: Arguments,
@@ -169,7 +171,7 @@ export class RPCInstanceWebview extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'webview',
 			calledTo: 'client',
-			sourceResource: this.resourceName,
+			sourceResource: resourceName,
 			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
@@ -184,9 +186,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public onServer<
-		EventName extends keyof s.RPCEvents_ServerWebview,
-		CallbackArguments extends Parameters<s.RPCEvents_ServerWebview[EventName]>,
-		CallbackReturn extends ReturnType<s.RPCEvents_ServerWebview[EventName]>,
+		EventName extends string,
+		CallbackArguments extends RPCEventArguments<s.RPCEvents_ServerWebview, EventName>,
+		CallbackReturn extends RPCEventResponse<s.RPCEvents_ServerWebview, EventName>,
 	>(
 		eventName: EventName,
 		cb: (
@@ -202,7 +204,7 @@ export class RPCInstanceWebview extends Wrapper {
 		return this
 	}
 
-	public offServer<EventName extends keyof s.RPCEvents_ServerWebview>(
+	public offServer<EventName extends string>(
 		eventName: EventName,
 	): RPCInstanceWebview {
 		if (this.debug) {
@@ -215,9 +217,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public async emitServer<
-		EventName extends keyof s.RPCEvents_WebviewServer,
-		Arguments extends Parameters<s.RPCEvents_WebviewServer[EventName]>,
-		Response extends ReturnType<s.RPCEvents_WebviewServer[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_WebviewServer, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_WebviewServer, EventName>,
 	>(
 		resourceName: string,
 		eventName: EventName,
@@ -231,9 +233,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	private async _emitServer<
-		EventName extends keyof s.RPCEvents_WebviewServer,
-		Arguments extends Parameters<s.RPCEvents_WebviewServer[EventName]>,
-		Response extends ReturnType<s.RPCEvents_WebviewServer[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_WebviewServer, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_WebviewServer, EventName>,
 	>(
 		eventName: EventName,
 		args: Arguments,
@@ -244,7 +246,7 @@ export class RPCInstanceWebview extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'webview',
 			calledTo: 'server',
-			sourceResource: this.resourceName,
+			sourceResource: resourceName,
 			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
@@ -259,9 +261,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public onSelf<
-		EventName extends keyof s.RPCEvents_Webview,
-		CallbackArguments extends Parameters<s.RPCEvents_Webview[EventName]>,
-		CallbackReturn extends ReturnType<s.RPCEvents_Webview[EventName]>,
+		EventName extends string,
+		CallbackArguments extends RPCEventArguments<s.RPCEvents_Webview, EventName>,
+		CallbackReturn extends RPCEventResponse<s.RPCEvents_Webview, EventName>,
 	>(
 		eventName: EventName,
 		cb: (
@@ -277,7 +279,7 @@ export class RPCInstanceWebview extends Wrapper {
 		return this
 	}
 
-	public offSelf<EventName extends keyof s.RPCEvents_Webview>(
+	public offSelf<EventName extends string>(
 		eventName: EventName,
 	): this {
 		if (this.debug) {
@@ -290,9 +292,9 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public async emitSelf<
-		EventName extends keyof s.RPCEvents_Webview,
-		Arguments extends Parameters<s.RPCEvents_Webview[EventName]>,
-		Response extends ReturnType<s.RPCEvents_Webview[EventName]>,
+		EventName extends string,
+		Arguments extends RPCEventArguments<s.RPCEvents_Webview, EventName>,
+		Response extends RPCEventResponse<s.RPCEvents_Webview, EventName>,
 	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
 		const payload: RPCState = {
 			event: eventName,

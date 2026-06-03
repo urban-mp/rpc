@@ -21,6 +21,20 @@ export type RPCConfig<T extends RPCEnvironment | unknown> = {
 
 export type RPCEventType = 'event' | 'response'
 
+export type RPCEventArguments<Events, EventName extends string> =
+	EventName extends keyof Events
+		? Events[EventName] extends (...args: infer Arguments) => unknown
+			? Arguments
+			: unknown[]
+		: unknown[]
+
+export type RPCEventResponse<Events, EventName extends string> =
+	EventName extends keyof Events
+		? Events[EventName] extends (...args: unknown[]) => infer Response
+			? Response
+			: unknown
+		: unknown
+
 export type RPCState = {
 	event: string
 	uuid: string
