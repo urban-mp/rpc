@@ -1,9 +1,9 @@
 import { Emitter } from '../utils/emitter'
 import { generateUUID, stringify } from '../utils/funcs'
 import {
-	RPCEvents,
 	type RPCConfig,
 	type RPCEnvironment,
+	RPCEvents,
 	type RPCState,
 	type RPCStateRaw,
 	type RPCStateWeb,
@@ -124,21 +124,51 @@ export class RPCInstanceWebview extends Wrapper {
 	}
 
 	public call(
-		env: RPCEnvironment,
+		env: 'cef',
 		eventName: string,
 		...args: unknown[]
+	): Promise<unknown>
+	public call(
+		env: Exclude<RPCEnvironment, 'cef'>,
+		resourceName: string,
+		eventName: string,
+		...args: unknown[]
+	): Promise<unknown>
+	public call(
+		env: Exclude<RPCEnvironment, 'cef'>,
+		eventName: string,
+		...args: unknown[]
+	): Promise<unknown>
+	public call(
+		env: RPCEnvironment,
+		resourceOrEventName: string,
+		eventNameOrArg?: unknown,
+		...args: unknown[]
 	): Promise<unknown> {
-		const resourceName = this.resourceName ?? ''
+		if (env === 'cef') {
+			const selfArgs =
+				eventNameOrArg === undefined ? args : [eventNameOrArg, ...args]
+
+			return this._callSelf(resourceOrEventName, ...selfArgs)
+		}
+
+		const hasResource =
+			typeof eventNameOrArg === 'string' && !resourceOrEventName.includes(':')
+		const resourceName = hasResource
+			? resourceOrEventName
+			: (this.resourceName ?? '')
+		const eventName = hasResource ? eventNameOrArg : resourceOrEventName
+		const callArgs = hasResource
+			? args
+			: eventNameOrArg === undefined
+				? args
+				: [eventNameOrArg, ...args]
 
 		if (env === 'client') {
-			return this._callClient(resourceName, eventName, ...args)
+			return this._callClient(resourceName, eventName, ...callArgs)
 		}
 
-		if (env === 'server') {
-			return this._callServer(resourceName, eventName, ...args)
-		}
-
-		return this._callSelf(eventName, ...args)
+		return this._callServer(resourceName, eventName, ...callArgs)
 	}
 
 	private async _callClient(
@@ -151,7 +181,7 @@ export class RPCInstanceWebview extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'cef',
 			calledTo: 'client',
-			sourceResource: resourceName,
+			sourceResource: this.resourceName,
 			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
@@ -159,7 +189,7 @@ export class RPCInstanceWebview extends Wrapper {
 			type: 'event',
 		}
 
-		return await this._createHttpClientRequest(payload, resourceName)
+		return await this._createHttpClientRequest(payload)
 	}
 
 	private async _callServer(
@@ -172,7 +202,7 @@ export class RPCInstanceWebview extends Wrapper {
 			uuid: generateUUID(),
 			calledFrom: 'cef',
 			calledTo: 'server',
-			sourceResource: resourceName,
+			sourceResource: this.resourceName,
 			targetResource: resourceName,
 			error: null,
 			data: args.length ? args : null,
@@ -180,7 +210,7 @@ export class RPCInstanceWebview extends Wrapper {
 			type: 'event',
 		}
 
-		return await this._createHttpClientRequest(payload, resourceName)
+		return await this._createHttpClientRequest(payload)
 	}
 
 	private async _callSelf(
@@ -216,7 +246,6 @@ export class RPCInstanceWebview extends Wrapper {
 
 	private async _createHttpClientRequest<R>(
 		data: RPCStateRaw | RPCState,
-		resourceName?: string,
 	): Promise<R> {
 		const dataRaw = typeof data === 'string' ? data : stringify(data)
 		const options = {
@@ -227,10 +256,7 @@ export class RPCInstanceWebview extends Wrapper {
 			body: dataRaw,
 		}
 		const targetResourceName =
-			resourceName ??
-			this.resourceName ??
-			window?.GetParentResourceName?.() ??
-			'nui-frame-app'
+			this.resourceName ?? window?.GetParentResourceName?.() ?? 'nui-frame-app'
 		return fetch(
 			`https://${targetResourceName}/${RPCEvents.LISTENER_WEB}`,
 			options,

@@ -61,6 +61,17 @@ Use `call(targetEnv, eventName, ...args)` everywhere.
 const profile = await rpc.call('server', 'profile:get', userId)
 ```
 
+From CEF, pass `resourceName` before `eventName` to call a handler registered in another resource. The NUI HTTP request still goes through the parent NUI resource, but the RPC payload targets `resourceName`.
+
+```ts
+const result = await rpc.call(
+	'server',
+	'core',
+	'server:player:account:login',
+	{ name: 'cataadv', password: '12' },
+)
+```
+
 Server calls to a player runtime use `eventName` before `player`.
 
 ```ts
@@ -79,7 +90,9 @@ await rpc.call('cef', 'modal:open', player, { id: 'inventory' })
 | Client | Client | `rpc.call('client', 'player:getPosition')` |
 | Client | CEF | `rpc.call('cef', 'settings:get', key)` |
 | CEF | Server | `rpc.call('server', 'profile:save', payload)` |
+| CEF | Server resource | `rpc.call('server', 'core', 'profile:save', payload)` |
 | CEF | Client | `rpc.call('client', 'camera:getMode')` |
+| CEF | Client resource | `rpc.call('client', 'hud', 'camera:getMode')` |
 | CEF | CEF | `rpc.call('cef', 'theme:get')` |
 
 ## Broadcast From Server
