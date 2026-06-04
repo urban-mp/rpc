@@ -1,18 +1,10 @@
-import type * as s from '@urban-mp/rpc-types'
 import { Emitter } from '../utils/emitter'
 import { generateUUID, parse, stringify, stringifyWeb } from '../utils/funcs'
 import {
-	NATIVE_CLIENT_EVENTS,
-	NATIVE_CLIENT_NETWORK_EVENTS,
-} from '../utils/native'
-import {
 	type RPCConfig,
-	type RPCEventArguments,
-	type RPCEventResponse,
+	type RPCEnvironment,
 	RPCErrors,
 	RPCEvents,
-	type RPCNativeClientEvents,
-	type RPCNativeClientNetworksEvents,
 	type RPCState,
 	type RPCStateRaw,
 	type RPCStateWeb,
@@ -25,13 +17,7 @@ declare function on(eventName: string, callback: Function): void
 declare function RegisterNuiCallbackType(callbackType: string): void
 declare function GetPlayerServerId(player: number): number
 declare function PlayerId(): number
-declare function SetNuiFocus(hasFocus: boolean, hasCursor: boolean): void
 declare function GetCurrentResourceName(): string
-declare function RegisterCommand(
-	commandName: string,
-	handler: Function,
-	restricted: boolean,
-): void
 declare function SendNuiMessage(jsonString: string): boolean
 
 export class RPCInstanceClient extends Wrapper {
@@ -103,7 +89,7 @@ export class RPCInstanceClient extends Wrapper {
 
 				emitNet(RPCEvents.LISTENER_CLIENT, stringify(response))
 			}
-			if (payload.calledTo === 'webview') {
+			if (payload.calledTo === 'cef') {
 				this._sendWebMessage({
 					origin: RPCEvents.LISTENER_SERVER,
 					data: payload,
@@ -117,7 +103,7 @@ export class RPCInstanceClient extends Wrapper {
 					...(payload.data && payload.data.length > 0 ? payload.data : []),
 				)
 			}
-			if (payload.calledTo === 'webview') {
+			if (payload.calledTo === 'cef') {
 				await this._pendingWebToServer.emit(
 					payload.uuid,
 					...(payload.data && payload.data.length > 0 ? payload.data : []),
@@ -175,46 +161,44 @@ export class RPCInstanceClient extends Wrapper {
 		return { status: 'unknown' }
 	}
 
-	public onServer<
-		EventName extends string,
-		CallbackArguments extends RPCEventArguments<s.RPCEvents_ServerClient, EventName>,
-		CallbackReturn extends RPCEventResponse<s.RPCEvents_ServerClient, EventName>,
-	>(
-		eventName: EventName,
-		cb: (
-			...args: CallbackArguments
-		) => Awaited<CallbackReturn> | Promise<Awaited<CallbackReturn>>,
+	public register(
+		eventName: string,
+		cb: (...args: unknown[]) => unknown | Promise<unknown>,
 	): this {
 		if (this.debug) {
-			this.console.log(`[RPC]:onServer ${eventName}`)
+			this.console.log(`[RPC]:register ${eventName}`)
 		}
 
 		this._emitterServer.on(eventName, cb)
+		this._emitterWeb.on(eventName, cb)
+		this._emitterLocal.on(eventName, cb)
 
 		return this
 	}
 
-	public offServer<EventName extends string>(
-		eventName: EventName,
-	): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:offServer ${eventName}`)
+	public call(
+		env: RPCEnvironment,
+		eventName: string,
+		...args: unknown[]
+	): Promise<unknown> {
+		const resourceName = this.resourceName ?? ''
+
+		if (env === 'server') {
+			return this._callServer(resourceName, eventName, ...args)
 		}
 
-		this._emitterServer.off(eventName)
+		if (env === 'cef') {
+			return this._callCef(resourceName, eventName, ...args)
+		}
 
-		return this
+		return this._callSelf(eventName, ...args)
 	}
 
-	public async emitServer<
-		EventName extends string,
-		Arguments extends RPCEventArguments<s.RPCEvents_ClientServer, EventName>,
-		Response extends RPCEventResponse<s.RPCEvents_ClientServer, EventName>,
-	>(
+	private async _callServer(
 		resourceName: string,
-		eventName: EventName,
-		...args: Arguments
-	): Promise<Awaited<Response>> {
+		eventName: string,
+		...args: unknown[]
+	): Promise<unknown> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
@@ -228,7 +212,7 @@ export class RPCInstanceClient extends Wrapper {
 			type: 'event',
 		}
 
-		const responsePromise = new Promise<Awaited<Response>>(res => {
+		const responsePromise = new Promise<unknown>(res => {
 			this._pendingServer.once(payload.uuid, res)
 		})
 
@@ -237,51 +221,16 @@ export class RPCInstanceClient extends Wrapper {
 		return responsePromise
 	}
 
-	public onWebview<
-		EventName extends string,
-		CallbackArguments extends RPCEventArguments<s.RPCEvents_WebviewClient, EventName>,
-		CallbackReturn extends RPCEventResponse<s.RPCEvents_WebviewClient, EventName>,
-	>(
-		eventName: EventName,
-		cb: (
-			...args: CallbackArguments
-		) => Awaited<CallbackReturn> | Promise<Awaited<CallbackReturn>>,
-	): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:onWebview ${eventName}`)
-		}
-
-		this._emitterWeb.on(eventName, cb)
-
-		return this
-	}
-
-	public offWebview<EventName extends string>(
-		eventName: EventName,
-	): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:offWebview ${eventName}`)
-		}
-
-		this._emitterWeb.off(eventName)
-
-		return this
-	}
-
-	public async emitWebview<
-		EventName extends string,
-		Arguments extends RPCEventArguments<s.RPCEvents_ClientWebview, EventName>,
-		Response extends RPCEventResponse<s.RPCEvents_ClientWebview, EventName>,
-	>(
+	private async _callCef(
 		resourceName: string,
-		eventName: EventName,
-		...args: Arguments
-	): Promise<Awaited<Response>> {
+		eventName: string,
+		...args: unknown[]
+	): Promise<unknown> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
 			calledFrom: 'client',
-			calledTo: 'webview',
+			calledTo: 'cef',
 			sourceResource: this.resourceName,
 			targetResource: resourceName,
 			error: null,
@@ -290,7 +239,7 @@ export class RPCInstanceClient extends Wrapper {
 			type: 'event',
 		}
 
-		const responsePromise = new Promise<Awaited<Response>>(res => {
+		const responsePromise = new Promise<unknown>(res => {
 			this._pendingWeb.once(payload.uuid, res)
 		})
 
@@ -302,42 +251,10 @@ export class RPCInstanceClient extends Wrapper {
 		return responsePromise
 	}
 
-	public onSelf<
-		EventName extends string,
-		CallbackArguments extends RPCEventArguments<s.RPCEvents_Client, EventName>,
-		CallbackReturn extends RPCEventResponse<s.RPCEvents_Client, EventName>,
-	>(
-		eventName: EventName,
-		cb: (
-			...args: CallbackArguments
-		) => Awaited<CallbackReturn> | Promise<Awaited<CallbackReturn>>,
-	): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:onSelf ${eventName}`)
-		}
-
-		this._emitterLocal.on(eventName, cb)
-
-		return this
-	}
-
-	public offSelf<EventName extends string>(
-		eventName: EventName,
-	): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:offSelf ${eventName}`)
-		}
-
-		this._emitterLocal.off(eventName)
-
-		return this
-	}
-
-	public async emitSelf<
-		EventName extends string,
-		Arguments extends RPCEventArguments<s.RPCEvents_Client, EventName>,
-		Response extends RPCEventResponse<s.RPCEvents_Client, EventName>,
-	>(eventName: EventName, ...args: Arguments): Promise<Awaited<Response>> {
+	private async _callSelf(
+		eventName: string,
+		...args: unknown[]
+	): Promise<unknown> {
 		const payload: RPCState = {
 			event: eventName,
 			uuid: generateUUID(),
@@ -359,72 +276,10 @@ export class RPCInstanceClient extends Wrapper {
 
 		this.verifyEvent(this._emitterLocal, payload)
 
-		return await this._emitterLocal.emit<Awaited<Response>>(
+		return await this._emitterLocal.emit(
 			payload.event,
 			...(payload.data && payload.data.length > 0 ? payload.data : []),
 		)
-	}
-
-	public onCommand<
-		CommandName extends s.RPCCommands_Client,
-		CallbackArguments extends unknown[],
-	>(
-		command: CommandName,
-		cb: (player: number, args: CallbackArguments, commandRaw: string) => void,
-	): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:onCommand ${command}`)
-		}
-
-		RegisterCommand(command, cb, false)
-
-		return this
-	}
-
-	public onNativeEvent<
-		EventName extends keyof RPCNativeClientEvents,
-		CallbackArguments extends Parameters<RPCNativeClientEvents[EventName]>,
-	>(eventName: EventName, cb: (...args: CallbackArguments) => void): this {
-		if (!NATIVE_CLIENT_EVENTS.includes(eventName)) {
-			throw new Error(RPCErrors.UNKNOWN_NATIVE)
-		}
-
-		if (this.debug) {
-			this.console.log(`[RPC]:onNativeEvent ${eventName}`)
-		}
-
-		on(eventName, cb)
-
-		return this
-	}
-
-	public onNativeNetworkEvent<
-		EventName extends keyof RPCNativeClientNetworksEvents,
-		CallbackArguments extends Parameters<
-			RPCNativeClientNetworksEvents[EventName]
-		>,
-	>(eventName: EventName, cb: (...args: CallbackArguments) => void): this {
-		if (!NATIVE_CLIENT_NETWORK_EVENTS.includes(eventName)) {
-			throw new Error(RPCErrors.UNKNOWN_NATIVE)
-		}
-
-		if (this.debug) {
-			this.console.log(`[RPC]:onNativeNetworkEvent ${eventName}`)
-		}
-
-		on(eventName, cb)
-
-		return this
-	}
-
-	public setWebviewFocus(hasFocus: boolean, hasCursor: boolean): this {
-		if (this.debug) {
-			this.console.log(`[RPC]:setWebviewFocus ${hasFocus} ${hasCursor}`)
-		}
-
-		SetNuiFocus(hasFocus, hasCursor)
-
-		return this
 	}
 
 	private _sendWebMessage(payload: RPCStateWeb): void {

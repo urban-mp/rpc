@@ -27,8 +27,8 @@ class RPC<T extends RPCEnvironment> extends Wrapper {
 			case 'client':
 				this.operator = new RPCInstanceClient(opts as RPCConfig<'client'>)
 				break
-			case 'webview':
-				this.operator = new RPCInstanceWebview(opts as RPCConfig<'webview'>)
+			case 'cef':
+				this.operator = new RPCInstanceWebview(opts as RPCConfig<'cef'>)
 				break
 			default:
 				throw new Error(RPCErrors.UNKNOWN_ENVIRONMENT)
@@ -44,7 +44,6 @@ const RPCFactory = RPC
 
 export { RPC, RPCFactory }
 export * from './utils/types'
-export * from './utils/native'
 export type * from './core/server'
 export type * from './core/client'
 export type * from './core/webview'
