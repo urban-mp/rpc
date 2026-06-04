@@ -1,7 +1,7 @@
 {
 	"name": "@urban-mp/rpc",
 	"description": "FiveM RPC is an all-in-one package with asynchronous RPC implementation for FiveM servers in JS/TS",
-	"version": "0.1.6",
+	"version": "0.1.7",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
 	"files": [

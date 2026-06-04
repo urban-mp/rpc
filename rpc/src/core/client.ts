@@ -43,7 +43,10 @@ export class RPCInstanceClient extends Wrapper {
 		RegisterNuiCallbackType(RPCEvents.LISTENER_WEB)
 		on(
 			`__cfx_nui:${RPCEvents.LISTENER_WEB}`,
-			async (data: RPCState, callback: (res: unknown) => void) => {
+			async (
+				data: RPCStateRaw | RPCState,
+				callback: (res: unknown) => void,
+			) => {
 				const res = await this._handleWeb(data)
 				callback(res)
 			},
@@ -112,7 +115,12 @@ export class RPCInstanceClient extends Wrapper {
 		}
 	}
 
-	private async _handleWeb(payload: RPCState): Promise<unknown> {
+	private async _handleWeb(
+		payloadRaw: RPCStateRaw | RPCState,
+	): Promise<unknown> {
+		const payload =
+			typeof payloadRaw === 'string' ? parse(payloadRaw) : payloadRaw
+
 		if (this.debug) {
 			this.console.log(
 				`[RPC]:client:accepted ${payload.type} ${payload.event} from ${payload.calledFrom}`,
